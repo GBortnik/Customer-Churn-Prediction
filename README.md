@@ -1,2 +1,2 @@
-# Customer-Churn-Prediction
-Machine Learning Project
+# Customer Churn Prediction
+Machine Learning Project in progress
