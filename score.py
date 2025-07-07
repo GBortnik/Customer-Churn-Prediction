@@ -1,9 +1,68 @@
-
 import json
 import joblib
 import pandas as pd
 import numpy as np
 from azureml.core.model import Model
+from sklearn.preprocessing import LabelEncoder
+
+def preprocess_new_data(new_data, preprocessing_info):
+    """
+    Preprocess new data the same way as train data
+    """
+    df = new_data.copy()
+    
+    # Remove ID cols
+    df = df.drop(columns=[col for col in preprocessing_info['id_cols'] if col in df.columns], errors='ignore')
+    
+    # Label encoding binary columns
+    le = LabelEncoder()
+    for col in preprocessing_info['bin_cols']:
+        if col in df.columns and col != 'Churn':  # exclude target if present
+            df[col] = le.fit_transform(df[col].astype(str))
+    
+    # get_dummies for multi-values columns
+    df = pd.get_dummies(data=df, columns=preprocessing_info['multi_cols'])
+    
+    # Make sure we have all dummy columns (add missing ones with 0 values
+    for col in preprocessing_info['final_feature_names']:
+        if col not in df.columns:
+            df[col] = 0
+    
+    # Scaling numerical columns
+    if preprocessing_info['num_cols']:
+        scaled_nums = preprocessing_info['scaler'].transform(df[preprocessing_info['num_cols']])
+        scaled_df = pd.DataFrame(scaled_nums, columns=preprocessing_info['num_cols'], index=df.index)
+        
+        # Replace original numerical columns with scaled ones
+        df = df.drop(columns=preprocessing_info['num_cols'])
+        df = df.merge(scaled_df, left_index=True, right_index=True, how="left")
+    
+    df = df[preprocessing_info['final_feature_names']]
+    
+    return df
+
+def predict_churn(input_data, pipeline_path='churn_model_pipeline.joblib'):
+    """
+    Complete predict function - from raw data to result
+    """
+    # Load pipeline
+    pipeline = joblib.load(pipeline_path)
+    
+    # Preprocess data
+    processed_data = preprocess_new_data(input_data, pipeline['preprocessing_info'])
+    
+    # Predict
+    probabilities = pipeline['model'].predict_proba(processed_data)
+    churn_probability = probabilities[:, 1]  # probability of class 1 (churn)
+    
+    # Apply threshold
+    predictions = (churn_probability >= pipeline['model_info']['threshold']).astype(int)
+    
+    return {
+        'predictions': predictions,
+        'churn_probabilities': churn_probability,
+        'no_churn_probabilities': probabilities[:, 0]
+    }
 
 complete_pipeline = None
 
