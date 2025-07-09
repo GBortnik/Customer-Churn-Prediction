@@ -158,7 +158,26 @@ def main():
             
             with col_pay2:
                 monthly_charges = st.number_input("Monthly Charges ($)", min_value=0.0, max_value=500.0, value=50.0)
-                total_charges = st.number_input("Total Charges ($)", min_value=0.0, max_value=50000.0, value=500.0)
+    
+                # Smart calculation of Total Charges based on Monthly Charges and Tenure
+                calculated_total = monthly_charges * tenure
+    
+                # Allow user to adjust, but default to realistic value
+                total_charges = st.number_input(
+                    "Total Charges ($)", 
+                    min_value=0.0, 
+                    max_value=50000.0, 
+                    value=calculated_total,
+                    help=f"Suggested value based on Monthly Charges × Tenure = ${calculated_total:.2f}"
+                )
+    
+                # Show warning if values are unrealistic
+                if total_charges > 0 and monthly_charges > 0 and tenure > 0:
+                    expected_total = monthly_charges * tenure
+                    ratio = total_charges / expected_total if expected_total > 0 else 0
+        
+                    if ratio < 0.5 or ratio > 2.0:
+                        st.warning(f"⚠️ Unrealistic combination! Expected Total Charges ≈ ${expected_total:.2f}")
             
             # Submit button
             submitted = st.form_submit_button("🔍 Predict Churn", use_container_width=True)
