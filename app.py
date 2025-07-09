@@ -89,7 +89,7 @@ def load_model():
         st.error("Model file not found. Please upload churn_complete_model.joblib to your repository.")
         return None
 
-# IMPROVED: Enhanced debug function with feature importance
+# Enhanced debug function with feature importance
 def debug_preprocessing(input_data, pipeline):
     """Enhanced debug function to check preprocessing and feature impact"""
     st.write("**Debug Information:**")
@@ -158,7 +158,7 @@ def debug_preprocessing(input_data, pipeline):
         df = df[pipeline['preprocessing_info']['final_feature_names']]
         st.write(f"8. Final shape: {df.shape}")
         
-        # NEW: Show final processed values
+        # Show final processed values
         st.write("**Final processed values (first 10 features):**")
         final_values = df.iloc[0].to_dict()
         for i, (col, val) in enumerate(list(final_values.items())[:10]):
@@ -173,7 +173,7 @@ def debug_preprocessing(input_data, pipeline):
         st.exception(e)
         return None
 
-# NEW: Function to analyze feature impact
+# Function to analyze feature impact
 def analyze_feature_impact(processed_data, pipeline):
     """Analyze which features are contributing most to the prediction"""
     try:
@@ -237,7 +237,7 @@ def test_value_impact(base_input, pipeline, feature_name, test_values):
     
     return results
 
-# NEW: Test individual feature impact in isolation
+# Test individual feature impact in isolation
 def test_monthly_charges_isolation(pipeline):
     """Test monthly charges impact with all other features fixed"""
     # Create baseline customer
@@ -423,12 +423,6 @@ def main():
                             # Test in isolation
                             test_monthly_charges_isolation(pipeline)
                         
-                        # IMPROVED: More accurate insights based on actual model behavior
-                        st.write("**Analysis Notes:**")
-                        st.write("- If higher charges decrease churn probability, the model may have learned unexpected patterns")
-                        st.write("- Check if preprocessing is correct (scaling, encoding)")
-                        st.write("- Verify model training data distribution")
-                        st.write("- Consider feature interactions in the model")
                 
                 except Exception as e:
                     st.error(f"Prediction error: {str(e)}")
