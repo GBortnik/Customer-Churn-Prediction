@@ -57,7 +57,7 @@ def preprocess_new_data(new_data, preprocessing_info):
     
     return df
 
-def predict_churn(input_data, pipeline_path='churn_model_pipeline.joblib'):
+def predict_churn(input_data, pipeline_path='churn_complete_model.joblib'):
     """
     Complete predict function - from raw data to result
     """
@@ -72,7 +72,8 @@ def predict_churn(input_data, pipeline_path='churn_model_pipeline.joblib'):
     churn_probability = probabilities[:, 1]  # probability of class 1 (churn)
     
     # Apply threshold
-    predictions = (churn_probability >= pipeline['model_info']['threshold']).astype(int)
+    threshold = pipeline.get('model_info', {}).get('threshold', 0.5)
+    predictions = (churn_probability >= threshold).astype(int)
     
     return {
         'predictions': predictions,
@@ -233,6 +234,29 @@ def main():
                             # Show first few processed features
                             st.write("Debug: First 10 processed features:")
                             st.write(processed_data.iloc[0, :10].to_dict())
+                            
+                            # Show ALL processed features to understand the full picture
+                            with st.expander("Debug: All processed features"):
+                                st.write(processed_data.iloc[0].to_dict())
+                                
+                            # Check if there are any features that might explain this behavior
+                            st.write("Debug: Key features analysis:")
+                            feature_dict = processed_data.iloc[0].to_dict()
+                            
+                            # Look for contract-related features
+                            contract_features = [k for k in feature_dict.keys() if 'contract' in k.lower()]
+                            if contract_features:
+                                st.write("Contract features:", {k: feature_dict[k] for k in contract_features})
+                            
+                            # Look for payment method features
+                            payment_features = [k for k in feature_dict.keys() if 'payment' in k.lower()]
+                            if payment_features:
+                                st.write("Payment features:", {k: feature_dict[k] for k in payment_features})
+                            
+                            # Look for internet service features
+                            internet_features = [k for k in feature_dict.keys() if 'internet' in k.lower()]
+                            if internet_features:
+                                st.write("Internet features:", {k: feature_dict[k] for k in internet_features})
                         
                         # Show probability
                         st.metric(
