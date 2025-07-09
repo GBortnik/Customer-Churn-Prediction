@@ -22,12 +22,11 @@ def preprocess_new_data(new_data, preprocessing_info):
     
     # FIXED: Apply scaling BEFORE get_dummies (same order as training)
     if preprocessing_info['num_cols']:
-        # Apply scaling to numerical columns first
-        for col in preprocessing_info['num_cols']:
-            if col in df.columns:
-                # Use the saved scaler from training
-                scaled_values = preprocessing_info['scaler'].transform(df[[col]])
-                df[col] = scaled_values.flatten()
+        # Apply scaling to ALL numerical columns at once (same as training)
+        num_cols_present = [col for col in preprocessing_info['num_cols'] if col in df.columns]
+        if num_cols_present:
+            scaled_values = preprocessing_info['scaler'].transform(df[num_cols_present])
+            df[num_cols_present] = scaled_values
     
     # FIXED: Use saved label encoders instead of fitting new ones
     for col in preprocessing_info['bin_cols']:
@@ -90,24 +89,75 @@ def debug_preprocessing(input_data, pipeline):
     st.write("**Debug Information:**")
     
     # Show original input
-    st.write("Original input:")
-    st.write(input_data)
+    st.write("Original input columns:")
+    st.write(list(input_data.columns))
+    
+    # Show preprocessing info
+    st.write("Expected numerical columns:")
+    st.write(pipeline['preprocessing_info']['num_cols'])
+    
+    st.write("Expected binary columns:")
+    st.write(pipeline['preprocessing_info']['bin_cols'])
+    
+    st.write("Expected multi-category columns:")
+    st.write(pipeline['preprocessing_info']['multi_cols'])
+    
+    st.write("Expected final feature names (first 10):")
+    st.write(pipeline['preprocessing_info']['final_feature_names'][:10])
     
     # Show preprocessing steps
     try:
-        processed_data = preprocess_new_data(input_data, pipeline['preprocessing_info'])
-        st.write("Processed data shape:", processed_data.shape)
-        st.write("Processed data (first few features):")
-        st.write(processed_data.iloc[:, :10])  # Show first 10 columns
+        # Step by step preprocessing
+        df = input_data.copy()
+        st.write(f"1. After copy: {df.shape}")
         
-        # Check if numerical columns are properly scaled
-        if 'num_cols' in pipeline['preprocessing_info']:
-            for col in pipeline['preprocessing_info']['num_cols']:
-                if col in processed_data.columns:
-                    st.write(f"{col} value after scaling: {processed_data[col].iloc[0]}")
-                    
+        # Remove ID cols
+        df = df.drop(columns=[col for col in pipeline['preprocessing_info']['id_cols'] if col in df.columns], errors='ignore')
+        st.write(f"2. After removing ID cols: {df.shape}")
+        
+        # Scale numerical columns
+        if pipeline['preprocessing_info']['num_cols']:
+            num_cols_present = [col for col in pipeline['preprocessing_info']['num_cols'] if col in df.columns]
+            st.write(f"3. Numerical columns present: {num_cols_present}")
+            if num_cols_present:
+                scaled_values = pipeline['preprocessing_info']['scaler'].transform(df[num_cols_present])
+                df[num_cols_present] = scaled_values
+                st.write(f"4. After scaling: {df.shape}")
+        
+        # Binary encoding
+        for col in pipeline['preprocessing_info']['bin_cols']:
+            if col in df.columns and col != 'Churn':
+                if col in pipeline['preprocessing_info']['label_encoders']:
+                    df[col] = pipeline['preprocessing_info']['label_encoders'][col].transform(df[col].astype(str))
+                else:
+                    df[col] = df[col].map({'No': 0, 'Yes': 1}).fillna(0)
+        st.write(f"5. After binary encoding: {df.shape}")
+        
+        # Get dummies
+        df = pd.get_dummies(data=df, columns=pipeline['preprocessing_info']['multi_cols'])
+        st.write(f"6. After get_dummies: {df.shape}")
+        st.write(f"   Columns after get_dummies: {list(df.columns)}")
+        
+        # Add missing columns
+        missing_cols = []
+        for col in pipeline['preprocessing_info']['final_feature_names']:
+            if col not in df.columns:
+                df[col] = 0
+                missing_cols.append(col)
+        
+        if missing_cols:
+            st.write(f"7. Added missing columns: {len(missing_cols)}")
+            st.write(f"   Missing columns: {missing_cols[:5]}...")  # Show first 5
+        
+        # Final ordering
+        df = df[pipeline['preprocessing_info']['final_feature_names']]
+        st.write(f"8. Final shape: {df.shape}")
+        
+        st.write("Preprocessing successful!")
+        
     except Exception as e:
         st.error(f"Preprocessing error: {str(e)}")
+        st.exception(e)
 
 # Main app
 def main():
