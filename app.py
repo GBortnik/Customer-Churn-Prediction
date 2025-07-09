@@ -81,81 +81,6 @@ def predict_churn(input_data, pipeline_path='churn_complete_model.joblib'):
         'no_churn_probabilities': probabilities[:, 0]
     }
 
-# Dodaj to do swojej aplikacji Streamlit jako test:
-
-if st.button("🧪 Test with Realistic Value Combinations"):
-    st.write("Testing with realistic Monthly Charges vs Total Charges combinations:")
-    
-    # Test realistic combinations
-    test_combinations = [
-        # Low Monthly Charges scenarios
-        {"monthly": 25, "total": 300, "tenure": 12, "description": "Low charges, new customer"},
-        {"monthly": 35, "total": 1050, "tenure": 30, "description": "Low charges, long tenure"},
-        
-        # Medium Monthly Charges scenarios  
-        {"monthly": 50, "total": 600, "tenure": 12, "description": "Medium charges, new customer"},
-        {"monthly": 65, "total": 1950, "tenure": 30, "description": "Medium charges, long tenure"},
-        
-        # High Monthly Charges scenarios
-        {"monthly": 85, "total": 1020, "tenure": 12, "description": "High charges, new customer"},
-        {"monthly": 100, "total": 3000, "tenure": 30, "description": "High charges, long tenure"},
-        
-        # Problematic combinations (unrealistic)
-        {"monthly": 100, "total": 500, "tenure": 12, "description": "HIGH charges but LOW total (unrealistic)"},
-        {"monthly": 30, "total": 5000, "tenure": 12, "description": "LOW charges but HIGH total (unrealistic)"},
-    ]
-    
-    results = []
-    
-    for combo in test_combinations:
-        test_data = pd.DataFrame({
-            'Customer ID': ['TEST_001'],
-            'Senior Citizen': ['No'],
-            'Partner': ['No'], 
-            'Dependents': ['No'],
-            'Tenure': [combo["tenure"]],
-            'Phone Service': ['Yes'],
-            'Multiple Lines': ['No'],
-            'Internet Service': ['Fiber optic'],
-            'Online Security': ['No'],
-            'Online Backup': ['No'],
-            'Device Protection': ['No'],
-            'Tech Support': ['No'],
-            'Streaming TV': ['No'],
-            'Streaming Movies': ['No'],
-            'Paperless Billing': ['Yes'],
-            'Contract': ['Month-to-month'],
-            'Payment Method': ['Electronic check'],
-            'Monthly Charges': [combo["monthly"]],
-            'Total Charges': [combo["total"]]
-        })
-        
-        try:
-            processed_data = preprocess_new_data(test_data, pipeline['preprocessing_info'])
-            prob = pipeline['model'].predict_proba(processed_data)[0, 1]
-            
-            results.append({
-                'Description': combo["description"],
-                'Monthly Charges': combo["monthly"],
-                'Total Charges': combo["total"],
-                'Tenure': combo["tenure"],
-                'Churn Probability': f"{prob:.3f}",
-                'Realistic': "✅" if combo["monthly"] * combo["tenure"] * 0.8 <= combo["total"] <= combo["monthly"] * combo["tenure"] * 1.2 else "❌"
-            })
-            
-        except Exception as e:
-            st.error(f"Error with combination {combo}: {e}")
-    
-    # Display results
-    results_df = pd.DataFrame(results)
-    st.dataframe(results_df)
-    
-    # Show correlation analysis
-    st.write("### Key Observations:")
-    st.write("- ✅ = Realistic combination (Total ≈ Monthly × Tenure)")
-    st.write("- ❌ = Unrealistic combination")
-    st.write("- Check if unrealistic combinations give strange predictions")
-
 # Load model
 @st.cache_resource
 def load_model():
@@ -374,6 +299,81 @@ def main():
                         st.write("Input data preview:")
                         st.write(input_data)
                         st.write("Error details:", str(e))
+
+# Dodaj to do swojej aplikacji Streamlit jako test:
+
+if st.button("🧪 Test with Realistic Value Combinations"):
+    st.write("Testing with realistic Monthly Charges vs Total Charges combinations:")
+    
+    # Test realistic combinations
+    test_combinations = [
+        # Low Monthly Charges scenarios
+        {"monthly": 25, "total": 300, "tenure": 12, "description": "Low charges, new customer"},
+        {"monthly": 35, "total": 1050, "tenure": 30, "description": "Low charges, long tenure"},
+        
+        # Medium Monthly Charges scenarios  
+        {"monthly": 50, "total": 600, "tenure": 12, "description": "Medium charges, new customer"},
+        {"monthly": 65, "total": 1950, "tenure": 30, "description": "Medium charges, long tenure"},
+        
+        # High Monthly Charges scenarios
+        {"monthly": 85, "total": 1020, "tenure": 12, "description": "High charges, new customer"},
+        {"monthly": 100, "total": 3000, "tenure": 30, "description": "High charges, long tenure"},
+        
+        # Problematic combinations (unrealistic)
+        {"monthly": 100, "total": 500, "tenure": 12, "description": "HIGH charges but LOW total (unrealistic)"},
+        {"monthly": 30, "total": 5000, "tenure": 12, "description": "LOW charges but HIGH total (unrealistic)"},
+    ]
+    
+    results = []
+    
+    for combo in test_combinations:
+        test_data = pd.DataFrame({
+            'Customer ID': ['TEST_001'],
+            'Senior Citizen': ['No'],
+            'Partner': ['No'], 
+            'Dependents': ['No'],
+            'Tenure': [combo["tenure"]],
+            'Phone Service': ['Yes'],
+            'Multiple Lines': ['No'],
+            'Internet Service': ['Fiber optic'],
+            'Online Security': ['No'],
+            'Online Backup': ['No'],
+            'Device Protection': ['No'],
+            'Tech Support': ['No'],
+            'Streaming TV': ['No'],
+            'Streaming Movies': ['No'],
+            'Paperless Billing': ['Yes'],
+            'Contract': ['Month-to-month'],
+            'Payment Method': ['Electronic check'],
+            'Monthly Charges': [combo["monthly"]],
+            'Total Charges': [combo["total"]]
+        })
+        
+        try:
+            processed_data = preprocess_new_data(test_data, pipeline['preprocessing_info'])
+            prob = pipeline['model'].predict_proba(processed_data)[0, 1]
+            
+            results.append({
+                'Description': combo["description"],
+                'Monthly Charges': combo["monthly"],
+                'Total Charges': combo["total"],
+                'Tenure': combo["tenure"],
+                'Churn Probability': f"{prob:.3f}",
+                'Realistic': "✅" if combo["monthly"] * combo["tenure"] * 0.8 <= combo["total"] <= combo["monthly"] * combo["tenure"] * 1.2 else "❌"
+            })
+            
+        except Exception as e:
+            st.error(f"Error with combination {combo}: {e}")
+    
+    # Display results
+    results_df = pd.DataFrame(results)
+    st.dataframe(results_df)
+    
+    # Show correlation analysis
+    st.write("### Key Observations:")
+    st.write("- ✅ = Realistic combination (Total ≈ Monthly × Tenure)")
+    st.write("- ❌ = Unrealistic combination")
+    st.write("- Check if unrealistic combinations give strange predictions")
     
     # Footer
     st.markdown("---")
