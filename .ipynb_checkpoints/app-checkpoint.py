@@ -13,26 +13,21 @@ st.set_page_config(
 
 def preprocess_new_data(new_data, preprocessing_info):
     """
-    Preprocess new data the same way as train data
+    Preprocess new data the same way as train data - FIXED VERSION
     """
     df = new_data.copy()
     
     # Remove ID cols
     df = df.drop(columns=[col for col in preprocessing_info['id_cols'] if col in df.columns], errors='ignore')
     
-    # Label encoding binary columns - FIX: Use consistent LabelEncoder
+    # FIXED: Use saved label encoders instead of fitting new ones
     for col in preprocessing_info['bin_cols']:
         if col in df.columns and col != 'Churn':  # exclude target if present
-            # Use saved encoder if available, otherwise create new one
-            if 'encoders' in preprocessing_info and col in preprocessing_info['encoders']:
-                le = preprocessing_info['encoders'][col]
-                try:
-                    df[col] = le.transform(df[col].astype(str))
-                except ValueError:
-                    # If value not seen in training, use most common value
-                    df[col] = le.transform([le.classes_[0]] * len(df))[0]
+            if col in preprocessing_info['label_encoders']:
+                # Use the saved encoder from training
+                df[col] = preprocessing_info['label_encoders'][col].transform(df[col].astype(str))
             else:
-                # Simple mapping for binary columns
+                # Fallback - create mapping manually
                 df[col] = df[col].map({'No': 0, 'Yes': 1}).fillna(0)
     
     # get_dummies for multi-values columns
@@ -43,17 +38,22 @@ def preprocess_new_data(new_data, preprocessing_info):
         if col not in df.columns:
             df[col] = 0
     
-    # Scaling numerical columns
+    # FIXED: Apply scaling properly
     if preprocessing_info['num_cols']:
-        scaled_nums = preprocessing_info['scaler'].transform(df[preprocessing_info['num_cols']])
-        scaled_df = pd.DataFrame(scaled_nums, columns=preprocessing_info['num_cols'], index=df.index)
+        # Create a copy for scaling
+        df_for_scaling = df.copy()
         
-        # Replace original numerical columns with scaled ones
-        df = df.drop(columns=preprocessing_info['num_cols'])
-        df = df.merge(scaled_df, left_index=True, right_index=True, how="left")
+        # Apply scaling only to numerical columns
+        for col in preprocessing_info['num_cols']:
+            if col in df_for_scaling.columns:
+                # Use the saved scaler from training
+                scaled_values = preprocessing_info['scaler'].transform(df_for_scaling[[col]])
+                df_for_scaling[col] = scaled_values.flatten()
+        
+        df = df_for_scaling
     
-    # Ensure we have all required columns in correct order
-    df = df.reindex(columns=preprocessing_info['final_feature_names'], fill_value=0)
+    # Ensure correct column order
+    df = df[preprocessing_info['final_feature_names']]
     
     return df
 
@@ -88,9 +88,31 @@ def load_model():
     except FileNotFoundError:
         st.error("Model file not found. Please upload churn_complete_model.joblib to your repository.")
         return None
+
+# ADDED: Debug function to check preprocessing
+def debug_preprocessing(input_data, pipeline):
+    """Debug function to check if preprocessing is working correctly"""
+    st.write("**Debug Information:**")
+    
+    # Show original input
+    st.write("Original input:")
+    st.write(input_data)
+    
+    # Show preprocessing steps
+    try:
+        processed_data = preprocess_new_data(input_data, pipeline['preprocessing_info'])
+        st.write("Processed data shape:", processed_data.shape)
+        st.write("Processed data (first few features):")
+        st.write(processed_data.iloc[:, :10])  # Show first 10 columns
+        
+        # Check if numerical columns are properly scaled
+        if 'num_cols' in pipeline['preprocessing_info']:
+            for col in pipeline['preprocessing_info']['num_cols']:
+                if col in processed_data.columns:
+                    st.write(f"{col} value after scaling: {processed_data[col].iloc[0]}")
+                    
     except Exception as e:
-        st.error(f"Error loading model: {str(e)}")
-        return None
+        st.error(f"Preprocessing error: {str(e)}")
 
 # Main app
 def main():
@@ -103,10 +125,8 @@ def main():
     if pipeline is None:
         st.stop()
     
-    # Debug: Show pipeline structure
-    with st.expander("Debug: Pipeline Info"):
-        st.write("Pipeline keys:", list(pipeline.keys()) if isinstance(pipeline, dict) else "Not a dict")
-        st.write("Pipeline type:", type(pipeline))
+    # ADDED: Debug toggle
+    debug_mode = st.sidebar.checkbox("Debug Mode", value=False)
     
     # Create two columns
     col1, col2 = st.columns([2, 1])
@@ -126,6 +146,7 @@ def main():
                 dependents = st.selectbox("Dependents", ["No", "Yes"])
             
             with col_demo2:
+                # FIXED: Set more realistic default values
                 tenure = st.number_input("Tenure (months)", min_value=0, max_value=100, value=12)
                 phone_service = st.selectbox("Phone Service", ["No", "Yes"])
                 multiple_lines = st.selectbox("Multiple Lines", ["No", "Yes", "No phone service"])
@@ -156,8 +177,11 @@ def main():
                     ["Electronic check", "Mailed check", "Bank transfer (automatic)", "Credit card (automatic)"])
             
             with col_pay2:
-                monthly_charges = st.number_input("Monthly Charges ($)", min_value=0.0, max_value=500.0, value=50.0)
-                total_charges = st.number_input("Total Charges ($)", min_value=0.0, max_value=50000.0, value=500.0)
+                # FIXED: Set ranges based on your training data
+                monthly_charges = st.number_input("Monthly Charges ($)", 
+                    min_value=18.0, max_value=120.0, value=50.0, step=0.25)
+                total_charges = st.number_input("Total Charges ($)", 
+                    min_value=18.0, max_value=9000.0, value=500.0, step=0.1)
             
             # Submit button
             submitted = st.form_submit_button("🔍 Predict Churn", use_container_width=True)
@@ -186,53 +210,20 @@ def main():
                     'Total Charges': [total_charges]
                 })
                 
+                # ADDED: Debug preprocessing if enabled
+                if debug_mode:
+                    debug_preprocessing(input_data, pipeline)
+                
                 try:
-                    # Check if pipeline is a dict with specific structure
-                    if isinstance(pipeline, dict) and 'predict_function' in pipeline:
-                        # Use your custom pipeline structure
-                        result = pipeline['predict_function'](input_data, 'churn_complete_model.joblib')
-                        churn_prob = result['churn_probabilities'][0]
-                        prediction = result['predictions'][0]
-                        
-                    elif isinstance(pipeline, dict) and 'model' in pipeline:
-                        # Use dictionary structure
-                        processed_data = preprocess_new_data(input_data, pipeline['preprocessing_info'])
-                        probabilities = pipeline['model'].predict_proba(processed_data)
-                        churn_prob = probabilities[0, 1]
-                        prediction = 1 if churn_prob > 0.5 else 0
-                        
-                    else:
-                        # Assume it's a scikit-learn pipeline
-                        probabilities = pipeline.predict_proba(input_data)
-                        churn_prob = probabilities[0, 1]
-                        prediction = 1 if churn_prob > 0.5 else 0
+                    # Make prediction using your pipeline
+                    result = pipeline['predict_function'](input_data, 'churn_complete_model.joblib')
                     
                     # Display results in the second column
                     with col2:
                         st.subheader("Prediction Results")
                         
-                        # Debug info
-                        st.write(f"Debug: Churn probability = {churn_prob:.4f}")
-                        st.write(f"Debug: Prediction = {prediction}")
-                        
-                        # Additional debug for the scaling issue
-                        if isinstance(pipeline, dict) and 'preprocessing_info' in pipeline:
-                            st.write(f"Debug: Monthly charges input = {monthly_charges}")
-                            st.write(f"Debug: Total charges input = {total_charges}")
-                            
-                            # Show processed data
-                            processed_data = preprocess_new_data(input_data, pipeline['preprocessing_info'])
-                            st.write("Debug: Processed data shape:", processed_data.shape)
-                            
-                            # Show specific columns if they exist
-                            if 'Monthly Charges' in processed_data.columns:
-                                st.write(f"Debug: Processed Monthly Charges = {processed_data['Monthly Charges'].iloc[0]:.4f}")
-                            if 'Total Charges' in processed_data.columns:
-                                st.write(f"Debug: Processed Total Charges = {processed_data['Total Charges'].iloc[0]:.4f}")
-                                
-                            # Show first few processed features
-                            st.write("Debug: First 10 processed features:")
-                            st.write(processed_data.iloc[0, :10].to_dict())
+                        churn_prob = result['churn_probabilities'][0]
+                        prediction = result['predictions'][0]
                         
                         # Show probability
                         st.metric(
@@ -253,28 +244,37 @@ def main():
                         st.write("**Risk Level:**")
                         st.progress(churn_prob)
                         
-                        # Additional insights
-                        st.write("**Key Factors:**")
+                        # IMPROVED: More logical insights
+                        st.write("**Key Risk Factors:**")
+                        risk_factors = []
+                        
                         if contract == "Month-to-month":
-                            st.write("- Month-to-month contract increases churn risk")
+                            risk_factors.append("Month-to-month contract increases churn risk")
                         if tenure < 12:
-                            st.write("- Low tenure increases churn risk")
+                            risk_factors.append("Low tenure increases churn risk")
                         if monthly_charges > 70:
-                            st.write("- High monthly charges increase churn risk")
+                            risk_factors.append("High monthly charges increase churn risk")
                         if internet_service == "Fiber optic":
-                            st.write("- Fiber optic service may increase churn risk")
+                            risk_factors.append("Fiber optic service may increase churn risk")
+                        if payment_method == "Electronic check":
+                            risk_factors.append("Electronic check payment increases churn risk")
+                        if paperless_billing == "Yes":
+                            risk_factors.append("Paperless billing may increase churn risk")
+                        
+                        if risk_factors:
+                            for factor in risk_factors:
+                                st.write(f"- {factor}")
+                        else:
+                            st.write("- No major risk factors identified")
                 
                 except Exception as e:
                     st.error(f"Prediction error: {str(e)}")
                     st.write("Please check your model pipeline and input data format.")
                     
-                    # Debug information
-                    with st.expander("Debug Information"):
-                        st.write("Input data shape:", input_data.shape)
-                        st.write("Input data columns:", list(input_data.columns))
-                        st.write("Input data preview:")
-                        st.write(input_data)
-                        st.write("Error details:", str(e))
+                    # ADDED: Show more detailed error info
+                    if debug_mode:
+                        st.write("**Error details:**")
+                        st.exception(e)
     
     # Footer
     st.markdown("---")
