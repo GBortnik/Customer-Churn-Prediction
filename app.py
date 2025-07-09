@@ -20,6 +20,15 @@ def preprocess_new_data(new_data, preprocessing_info):
     # Remove ID cols
     df = df.drop(columns=[col for col in preprocessing_info['id_cols'] if col in df.columns], errors='ignore')
     
+    # FIXED: Apply scaling BEFORE get_dummies (same order as training)
+    if preprocessing_info['num_cols']:
+        # Apply scaling to numerical columns first
+        for col in preprocessing_info['num_cols']:
+            if col in df.columns:
+                # Use the saved scaler from training
+                scaled_values = preprocessing_info['scaler'].transform(df[[col]])
+                df[col] = scaled_values.flatten()
+    
     # FIXED: Use saved label encoders instead of fitting new ones
     for col in preprocessing_info['bin_cols']:
         if col in df.columns and col != 'Churn':  # exclude target if present
@@ -30,27 +39,13 @@ def preprocess_new_data(new_data, preprocessing_info):
                 # Fallback - create mapping manually
                 df[col] = df[col].map({'No': 0, 'Yes': 1}).fillna(0)
     
-    # get_dummies for multi-values columns
+    # get_dummies for multi-values columns (after scaling)
     df = pd.get_dummies(data=df, columns=preprocessing_info['multi_cols'])
     
     # Make sure we have all dummy columns (add missing ones with 0 values)
     for col in preprocessing_info['final_feature_names']:
         if col not in df.columns:
             df[col] = 0
-    
-    # FIXED: Apply scaling properly
-    if preprocessing_info['num_cols']:
-        # Create a copy for scaling
-        df_for_scaling = df.copy()
-        
-        # Apply scaling only to numerical columns
-        for col in preprocessing_info['num_cols']:
-            if col in df_for_scaling.columns:
-                # Use the saved scaler from training
-                scaled_values = preprocessing_info['scaler'].transform(df_for_scaling[[col]])
-                df_for_scaling[col] = scaled_values.flatten()
-        
-        df = df_for_scaling
     
     # Ensure correct column order
     df = df[preprocessing_info['final_feature_names']]
