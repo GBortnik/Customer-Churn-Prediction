@@ -57,6 +57,29 @@ def preprocess_new_data(new_data, preprocessing_info):
     
     return df
 
+def predict_churn(input_data, pipeline_path='churn_model_pipeline.joblib'):
+    """
+    Complete predict function - from raw data to result
+    """
+    # Load pipeline
+    pipeline = joblib.load(pipeline_path)
+    
+    # Preprocess data
+    processed_data = preprocess_new_data(input_data, pipeline['preprocessing_info'])
+    
+    # Predict
+    probabilities = pipeline['model'].predict_proba(processed_data)
+    churn_probability = probabilities[:, 1]  # probability of class 1 (churn)
+    
+    # Apply threshold
+    predictions = (churn_probability >= pipeline['model_info']['threshold']).astype(int)
+    
+    return {
+        'predictions': predictions,
+        'churn_probabilities': churn_probability,
+        'no_churn_probabilities': probabilities[:, 0]
+    }
+
 # Load model
 @st.cache_resource
 def load_model():
