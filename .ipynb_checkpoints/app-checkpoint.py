@@ -2,6 +2,7 @@ import streamlit as st
 import joblib
 import pandas as pd
 import numpy as np
+from sklearn.preprocessing import LabelEncoder, StandardScaler, OneHotEncoder
 
 # Page config
 st.set_page_config(
@@ -10,6 +11,52 @@ st.set_page_config(
     layout="wide"
 )
 
+def preprocess_new_data(new_data, preprocessing_info):
+    """
+    Preprocess new data the same way as train data
+    """
+    df = new_data.copy()
+    
+    # Remove ID cols
+    df = df.drop(columns=[col for col in preprocessing_info['id_cols'] if col in df.columns], errors='ignore')
+    
+    # Label encoding binary columns - FIX: Use consistent LabelEncoder
+    for col in preprocessing_info['bin_cols']:
+        if col in df.columns and col != 'Churn':  # exclude target if present
+            # Use saved encoder if available, otherwise create new one
+            if 'encoders' in preprocessing_info and col in preprocessing_info['encoders']:
+                le = preprocessing_info['encoders'][col]
+                try:
+                    df[col] = le.transform(df[col].astype(str))
+                except ValueError:
+                    # If value not seen in training, use most common value
+                    df[col] = le.transform([le.classes_[0]] * len(df))[0]
+            else:
+                # Simple mapping for binary columns
+                df[col] = df[col].map({'No': 0, 'Yes': 1}).fillna(0)
+    
+    # get_dummies for multi-values columns
+    df = pd.get_dummies(data=df, columns=preprocessing_info['multi_cols'])
+    
+    # Make sure we have all dummy columns (add missing ones with 0 values)
+    for col in preprocessing_info['final_feature_names']:
+        if col not in df.columns:
+            df[col] = 0
+    
+    # Scaling numerical columns
+    if preprocessing_info['num_cols']:
+        scaled_nums = preprocessing_info['scaler'].transform(df[preprocessing_info['num_cols']])
+        scaled_df = pd.DataFrame(scaled_nums, columns=preprocessing_info['num_cols'], index=df.index)
+        
+        # Replace original numerical columns with scaled ones
+        df = df.drop(columns=preprocessing_info['num_cols'])
+        df = df.merge(scaled_df, left_index=True, right_index=True, how="left")
+    
+    # Ensure we have all required columns in correct order
+    df = df.reindex(columns=preprocessing_info['final_feature_names'], fill_value=0)
+    
+    return df
+
 # Load model
 @st.cache_resource
 def load_model():
@@ -17,6 +64,9 @@ def load_model():
         return joblib.load('churn_complete_model.joblib')
     except FileNotFoundError:
         st.error("Model file not found. Please upload churn_complete_model.joblib to your repository.")
+        return None
+    except Exception as e:
+        st.error(f"Error loading model: {str(e)}")
         return None
 
 # Main app
@@ -29,6 +79,11 @@ def main():
     
     if pipeline is None:
         st.stop()
+    
+    # Debug: Show pipeline structure
+    with st.expander("Debug: Pipeline Info"):
+        st.write("Pipeline keys:", list(pipeline.keys()) if isinstance(pipeline, dict) else "Not a dict")
+        st.write("Pipeline type:", type(pipeline))
     
     # Create two columns
     col1, col2 = st.columns([2, 1])
@@ -78,8 +133,8 @@ def main():
                     ["Electronic check", "Mailed check", "Bank transfer (automatic)", "Credit card (automatic)"])
             
             with col_pay2:
-                monthly_charges = st.number_input("Monthly Charges ($)", min_value=0.0, max_value=200.0, value=50.0)
-                total_charges = st.number_input("Total Charges ($)", min_value=0.0, max_value=10000.0, value=500.0)
+                monthly_charges = st.number_input("Monthly Charges ($)", min_value=0.0, max_value=500.0, value=50.0)
+                total_charges = st.number_input("Total Charges ($)", min_value=0.0, max_value=50000.0, value=500.0)
             
             # Submit button
             submitted = st.form_submit_button("🔍 Predict Churn", use_container_width=True)
@@ -109,15 +164,52 @@ def main():
                 })
                 
                 try:
-                    # Make prediction using your pipeline
-                    result = pipeline['predict_function'](input_data, 'churn_complete_model.joblib')
+                    # Check if pipeline is a dict with specific structure
+                    if isinstance(pipeline, dict) and 'predict_function' in pipeline:
+                        # Use your custom pipeline structure
+                        result = pipeline['predict_function'](input_data, 'churn_complete_model.joblib')
+                        churn_prob = result['churn_probabilities'][0]
+                        prediction = result['predictions'][0]
+                        
+                    elif isinstance(pipeline, dict) and 'model' in pipeline:
+                        # Use dictionary structure
+                        processed_data = preprocess_new_data(input_data, pipeline['preprocessing_info'])
+                        probabilities = pipeline['model'].predict_proba(processed_data)
+                        churn_prob = probabilities[0, 1]
+                        prediction = 1 if churn_prob > 0.5 else 0
+                        
+                    else:
+                        # Assume it's a scikit-learn pipeline
+                        probabilities = pipeline.predict_proba(input_data)
+                        churn_prob = probabilities[0, 1]
+                        prediction = 1 if churn_prob > 0.5 else 0
                     
                     # Display results in the second column
                     with col2:
                         st.subheader("Prediction Results")
                         
-                        churn_prob = result['churn_probabilities'][0]
-                        prediction = result['predictions'][0]
+                        # Debug info
+                        st.write(f"Debug: Churn probability = {churn_prob:.4f}")
+                        st.write(f"Debug: Prediction = {prediction}")
+                        
+                        # Additional debug for the scaling issue
+                        if isinstance(pipeline, dict) and 'preprocessing_info' in pipeline:
+                            st.write(f"Debug: Monthly charges input = {monthly_charges}")
+                            st.write(f"Debug: Total charges input = {total_charges}")
+                            
+                            # Show processed data
+                            processed_data = preprocess_new_data(input_data, pipeline['preprocessing_info'])
+                            st.write("Debug: Processed data shape:", processed_data.shape)
+                            
+                            # Show specific columns if they exist
+                            if 'Monthly Charges' in processed_data.columns:
+                                st.write(f"Debug: Processed Monthly Charges = {processed_data['Monthly Charges'].iloc[0]:.4f}")
+                            if 'Total Charges' in processed_data.columns:
+                                st.write(f"Debug: Processed Total Charges = {processed_data['Total Charges'].iloc[0]:.4f}")
+                                
+                            # Show first few processed features
+                            st.write("Debug: First 10 processed features:")
+                            st.write(processed_data.iloc[0, :10].to_dict())
                         
                         # Show probability
                         st.metric(
@@ -152,6 +244,14 @@ def main():
                 except Exception as e:
                     st.error(f"Prediction error: {str(e)}")
                     st.write("Please check your model pipeline and input data format.")
+                    
+                    # Debug information
+                    with st.expander("Debug Information"):
+                        st.write("Input data shape:", input_data.shape)
+                        st.write("Input data columns:", list(input_data.columns))
+                        st.write("Input data preview:")
+                        st.write(input_data)
+                        st.write("Error details:", str(e))
     
     # Footer
     st.markdown("---")
