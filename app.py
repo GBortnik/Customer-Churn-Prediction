@@ -81,6 +81,74 @@ def predict_churn(input_data, pipeline_path='churn_complete_model.joblib'):
         'no_churn_probabilities': probabilities[:, 0]
     }
 
+# Dodaj to do debugowania - sprawdź które features mają największy wpływ:
+
+def analyze_feature_impact(input_data, pipeline, feature_to_vary, values_to_test):
+    """Analyze how changing one feature affects prediction"""
+    
+    results = []
+    base_data = input_data.copy()
+    
+    for value in values_to_test:
+        test_data = base_data.copy()
+        test_data[feature_to_vary] = [value]
+        
+        try:
+            processed_data = preprocess_new_data(test_data, pipeline['preprocessing_info'])
+            prob = pipeline['model'].predict_proba(processed_data)[0, 1]
+            
+            results.append({
+                feature_to_vary: value,
+                'Churn_Probability': prob
+            })
+            
+        except Exception as e:
+            st.error(f"Error testing {feature_to_vary}={value}: {e}")
+    
+    return pd.DataFrame(results)
+
+# Feauture impact function
+if st.button("📊 Analyze Feature Impact"):
+    base_input = pd.DataFrame({
+        'Customer ID': ['TEST_001'],
+        'Senior Citizen': ['No'],
+        'Partner': ['No'],
+        'Dependents': ['No'],
+        'Tenure': [12],
+        'Phone Service': ['Yes'],
+        'Multiple Lines': ['No'],
+        'Internet Service': ['Fiber optic'],
+        'Online Security': ['No'],
+        'Online Backup': ['No'],
+        'Device Protection': ['No'],
+        'Tech Support': ['No'],
+        'Streaming TV': ['No'],
+        'Streaming Movies': ['No'],
+        'Paperless Billing': ['Yes'],
+        'Contract': ['Month-to-month'],
+        'Payment Method': ['Electronic check'],
+        'Monthly Charges': [50.0],
+        'Total Charges': [600.0]  # Realistic value
+    })
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.write("**Monthly Charges Impact:**")
+        monthly_results = analyze_feature_impact(
+            base_input, pipeline, 'Monthly Charges', 
+            [20, 30, 40, 50, 60, 70, 80, 90, 100]
+        )
+        st.dataframe(monthly_results)
+    
+    with col2:
+        st.write("**Tenure Impact:**")
+        tenure_results = analyze_feature_impact(
+            base_input, pipeline, 'Tenure',
+            [1, 6, 12, 18, 24, 36, 48, 60, 72]
+        )
+        st.dataframe(tenure_results)
+
 # Load model
 @st.cache_resource
 def load_model():
