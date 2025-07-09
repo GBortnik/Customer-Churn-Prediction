@@ -81,73 +81,80 @@ def predict_churn(input_data, pipeline_path='churn_complete_model.joblib'):
         'no_churn_probabilities': probabilities[:, 0]
     }
 
-# Dodaj to do debugowania - sprawdź które features mają największy wpływ:
+# Dodaj to do swojej aplikacji Streamlit jako test:
 
-def analyze_feature_impact(input_data, pipeline, feature_to_vary, values_to_test):
-    """Analyze how changing one feature affects prediction"""
+if st.button("🧪 Test with Realistic Value Combinations"):
+    st.write("Testing with realistic Monthly Charges vs Total Charges combinations:")
+    
+    # Test realistic combinations
+    test_combinations = [
+        # Low Monthly Charges scenarios
+        {"monthly": 25, "total": 300, "tenure": 12, "description": "Low charges, new customer"},
+        {"monthly": 35, "total": 1050, "tenure": 30, "description": "Low charges, long tenure"},
+        
+        # Medium Monthly Charges scenarios  
+        {"monthly": 50, "total": 600, "tenure": 12, "description": "Medium charges, new customer"},
+        {"monthly": 65, "total": 1950, "tenure": 30, "description": "Medium charges, long tenure"},
+        
+        # High Monthly Charges scenarios
+        {"monthly": 85, "total": 1020, "tenure": 12, "description": "High charges, new customer"},
+        {"monthly": 100, "total": 3000, "tenure": 30, "description": "High charges, long tenure"},
+        
+        # Problematic combinations (unrealistic)
+        {"monthly": 100, "total": 500, "tenure": 12, "description": "HIGH charges but LOW total (unrealistic)"},
+        {"monthly": 30, "total": 5000, "tenure": 12, "description": "LOW charges but HIGH total (unrealistic)"},
+    ]
     
     results = []
-    base_data = input_data.copy()
     
-    for value in values_to_test:
-        test_data = base_data.copy()
-        test_data[feature_to_vary] = [value]
+    for combo in test_combinations:
+        test_data = pd.DataFrame({
+            'Customer ID': ['TEST_001'],
+            'Senior Citizen': ['No'],
+            'Partner': ['No'], 
+            'Dependents': ['No'],
+            'Tenure': [combo["tenure"]],
+            'Phone Service': ['Yes'],
+            'Multiple Lines': ['No'],
+            'Internet Service': ['Fiber optic'],
+            'Online Security': ['No'],
+            'Online Backup': ['No'],
+            'Device Protection': ['No'],
+            'Tech Support': ['No'],
+            'Streaming TV': ['No'],
+            'Streaming Movies': ['No'],
+            'Paperless Billing': ['Yes'],
+            'Contract': ['Month-to-month'],
+            'Payment Method': ['Electronic check'],
+            'Monthly Charges': [combo["monthly"]],
+            'Total Charges': [combo["total"]]
+        })
         
         try:
             processed_data = preprocess_new_data(test_data, pipeline['preprocessing_info'])
             prob = pipeline['model'].predict_proba(processed_data)[0, 1]
             
             results.append({
-                feature_to_vary: value,
-                'Churn_Probability': prob
+                'Description': combo["description"],
+                'Monthly Charges': combo["monthly"],
+                'Total Charges': combo["total"],
+                'Tenure': combo["tenure"],
+                'Churn Probability': f"{prob:.3f}",
+                'Realistic': "✅" if combo["monthly"] * combo["tenure"] * 0.8 <= combo["total"] <= combo["monthly"] * combo["tenure"] * 1.2 else "❌"
             })
             
         except Exception as e:
-            st.error(f"Error testing {feature_to_vary}={value}: {e}")
+            st.error(f"Error with combination {combo}: {e}")
     
-    return pd.DataFrame(results)
-
-# Feauture impact function
-if st.button("📊 Analyze Feature Impact"):
-    base_input = pd.DataFrame({
-        'Customer ID': ['TEST_001'],
-        'Senior Citizen': ['No'],
-        'Partner': ['No'],
-        'Dependents': ['No'],
-        'Tenure': [12],
-        'Phone Service': ['Yes'],
-        'Multiple Lines': ['No'],
-        'Internet Service': ['Fiber optic'],
-        'Online Security': ['No'],
-        'Online Backup': ['No'],
-        'Device Protection': ['No'],
-        'Tech Support': ['No'],
-        'Streaming TV': ['No'],
-        'Streaming Movies': ['No'],
-        'Paperless Billing': ['Yes'],
-        'Contract': ['Month-to-month'],
-        'Payment Method': ['Electronic check'],
-        'Monthly Charges': [50.0],
-        'Total Charges': [600.0]  # Realistic value
-    })
+    # Display results
+    results_df = pd.DataFrame(results)
+    st.dataframe(results_df)
     
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.write("**Monthly Charges Impact:**")
-        monthly_results = analyze_feature_impact(
-            base_input, pipeline, 'Monthly Charges', 
-            [20, 30, 40, 50, 60, 70, 80, 90, 100]
-        )
-        st.dataframe(monthly_results)
-    
-    with col2:
-        st.write("**Tenure Impact:**")
-        tenure_results = analyze_feature_impact(
-            base_input, pipeline, 'Tenure',
-            [1, 6, 12, 18, 24, 36, 48, 60, 72]
-        )
-        st.dataframe(tenure_results)
+    # Show correlation analysis
+    st.write("### Key Observations:")
+    st.write("- ✅ = Realistic combination (Total ≈ Monthly × Tenure)")
+    st.write("- ❌ = Unrealistic combination")
+    st.write("- Check if unrealistic combinations give strange predictions")
 
 # Load model
 @st.cache_resource
