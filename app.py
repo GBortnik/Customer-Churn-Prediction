@@ -411,6 +411,14 @@ def main():
                         # Feature impact analysis
                         if debug_mode and processed_data is not None:
                             analyze_feature_impact(processed_data, pipeline)
+                            
+                            # Model behavior explanation (only in debug mode)
+                            st.write("**Model Behavior Analysis:**")
+                            st.write("ℹ️ **Understanding Monthly Charges Impact:**")
+                            st.write("- Higher monthly charges = Lower churn (premium customers are more loyal)")
+                            st.write("- This reflects actual business behavior in the dataset")
+                            st.write("- Budget customers (low charges) churn more frequently")
+                            st.write("- Premium customers (high charges) are more stable")
                         
                         # Test feature impact
                         if test_mode:
@@ -421,14 +429,6 @@ def main():
                             )
                             for result in test_results:
                                 st.write(f"Monthly Charges ${result['value']}: {result['churn_prob']:.1%}")
-                        
-                        # CORRECTED: Analysis based on actual model behavior
-                        st.write("**Model Analysis:**")
-                        st.write("✅ **Model is working correctly!**")
-                        st.write("- Higher monthly charges = Lower churn (premium customers are more loyal)")
-                        st.write("- This is actually logical business behavior")
-                        st.write("- Budget customers (low charges) churn more frequently")
-                        st.write("- Premium customers (high charges) are more stable")
                 
                 except Exception as e:
                     st.error(f"Prediction error: {str(e)}")
