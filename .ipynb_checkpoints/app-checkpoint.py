@@ -8,7 +8,8 @@ from sklearn.preprocessing import LabelEncoder, StandardScaler, OneHotEncoder
 st.set_page_config(
     page_title="Churn Prediction App",
     page_icon="📊",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed"  # This hides the sidebar on start
 )
 
 def preprocess_new_data(new_data, preprocessing_info):
@@ -286,16 +287,26 @@ def main():
     if pipeline is None:
         st.stop()
     
-    # Debug toggle
-    debug_mode = st.sidebar.checkbox("Debug Mode", value=False)
-    test_mode = st.sidebar.checkbox("Test Feature Impact", value=False)
-    isolation_test = st.sidebar.checkbox("Test Monthly Charges Isolation", value=False)
-    
-    # Quick isolation test button
-    if isolation_test:
-        st.sidebar.write("**Quick Isolation Test:**")
-        if st.sidebar.button("Run Monthly Charges Test"):
-            test_monthly_charges_isolation(pipeline)
+    # Sidebar with expander for advanced options
+    with st.sidebar:
+        st.header("🔧 Advanced Options")
+        
+        # Add a small info about expanding
+        st.info("💡 Expand sections below for debugging and testing features")
+        
+        # Use expanders to organize options
+        with st.expander("🐛 Debug Options"):
+            debug_mode = st.checkbox("Debug Mode", value=False)
+            
+        with st.expander("🧪 Feature Testing"):
+            test_mode = st.checkbox("Test Feature Impact", value=False)
+            isolation_test = st.checkbox("Test Monthly Charges Isolation", value=False)
+            
+            # Quick isolation test button
+            if isolation_test:
+                st.write("**Quick Isolation Test:**")
+                if st.button("Run Monthly Charges Test"):
+                    test_monthly_charges_isolation(pipeline)
     
     # Create two columns
     col1, col2 = st.columns([2, 1])
