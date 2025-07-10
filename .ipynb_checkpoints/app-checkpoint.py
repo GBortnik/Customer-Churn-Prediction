@@ -287,26 +287,11 @@ def main():
     if pipeline is None:
         st.stop()
     
-    # Sidebar with expander for advanced options
+    # Sidebar with debug options (collapsed by default)
     with st.sidebar:
         st.header("🔧 Advanced Options")
-        
-        # Add a small info about expanding
-        st.info("💡 Expand sections below for debugging and testing features")
-        
-        # Use expanders to organize options
-        with st.expander("🐛 Debug Options"):
-            debug_mode = st.checkbox("Debug Mode", value=False)
-            
-        with st.expander("🧪 Feature Testing"):
-            test_mode = st.checkbox("Test Feature Impact", value=False)
-            isolation_test = st.checkbox("Test Monthly Charges Isolation", value=False)
-            
-            # Quick isolation test button
-            if isolation_test:
-                st.write("**Quick Isolation Test:**")
-                if st.button("Run Monthly Charges Test"):
-                    test_monthly_charges_isolation(pipeline)
+        debug_mode = st.checkbox("Debug Mode", value=False)
+        test_mode = st.checkbox("Test Feature Impact", value=False)
     
     # Create two columns
     col1, col2 = st.columns([2, 1])
@@ -436,9 +421,6 @@ def main():
                             )
                             for result in test_results:
                                 st.write(f"Monthly Charges ${result['value']}: {result['churn_prob']:.1%}")
-                            
-                            # Test in isolation
-                            test_monthly_charges_isolation(pipeline)
                         
                         # CORRECTED: Analysis based on actual model behavior
                         st.write("**Model Analysis:**")
