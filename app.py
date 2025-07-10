@@ -38,6 +38,7 @@ def preprocess_new_data(new_data, preprocessing_info):
     # Apply get_dummies for multi-category columns
     df = pd.get_dummies(data=df, columns=preprocessing_info['multi_cols'], drop_first=False)
     
+    # CRITICAL FIX: Apply scaling AFTER categorical encoding
     if preprocessing_info['num_cols']:
         # Apply scaling to ALL numerical columns at once (same as training)
         num_cols_present = [col for col in preprocessing_info['num_cols'] if col in df.columns]
@@ -88,7 +89,7 @@ def load_model():
         st.error("Model file not found. Please upload churn_complete_model.joblib to your repository.")
         return None
 
-# IMPROVED: Enhanced debug function with feature importance
+# Enhanced debug function with feature importance
 def debug_preprocessing(input_data, pipeline):
     """Enhanced debug function to check preprocessing and feature impact"""
     st.write("**Debug Information:**")
@@ -157,7 +158,7 @@ def debug_preprocessing(input_data, pipeline):
         df = df[pipeline['preprocessing_info']['final_feature_names']]
         st.write(f"8. Final shape: {df.shape}")
         
-        # NEW: Show final processed values
+        # Show final processed values
         st.write("**Final processed values (first 10 features):**")
         final_values = df.iloc[0].to_dict()
         for i, (col, val) in enumerate(list(final_values.items())[:10]):
@@ -172,7 +173,7 @@ def debug_preprocessing(input_data, pipeline):
         st.exception(e)
         return None
 
-# NEW: Function to analyze feature impact
+# Function to analyze feature impact
 def analyze_feature_impact(processed_data, pipeline):
     """Analyze which features are contributing most to the prediction"""
     try:
@@ -236,7 +237,7 @@ def test_value_impact(base_input, pipeline, feature_name, test_values):
     
     return results
 
-# NEW: Test individual feature impact in isolation
+# Test individual feature impact in isolation
 def test_monthly_charges_isolation(pipeline):
     """Test monthly charges impact with all other features fixed"""
     # Create baseline customer
@@ -289,13 +290,6 @@ def main():
     # Debug toggle
     debug_mode = st.sidebar.checkbox("Debug Mode", value=False)
     test_mode = st.sidebar.checkbox("Test Feature Impact", value=False)
-    isolation_test = st.sidebar.checkbox("Test Monthly Charges Isolation", value=False)
-    
-    # Quick isolation test button
-    if isolation_test:
-        st.sidebar.write("**Quick Isolation Test:**")
-        if st.sidebar.button("Run Monthly Charges Test"):
-            test_monthly_charges_isolation(pipeline)
     
     # Create two columns
     col1, col2 = st.columns([2, 1])
@@ -429,13 +423,6 @@ def main():
                             # Test in isolation
                             test_monthly_charges_isolation(pipeline)
                         
-                        # CORRECTED: Analysis based on actual model behavior
-                        st.write("**Model Analysis:**")
-                        st.write("✅ **Model is working correctly!**")
-                        st.write("- Higher monthly charges = Lower churn (premium customers are more loyal)")
-                        st.write("- This is actually logical business behavior")
-                        st.write("- Budget customers (low charges) churn more frequently")
-                        st.write("- Premium customers (high charges) are more stable")
                 
                 except Exception as e:
                     st.error(f"Prediction error: {str(e)}")
