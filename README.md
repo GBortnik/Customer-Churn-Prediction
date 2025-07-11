@@ -11,6 +11,12 @@ Machine Learning Project in progress
 
 ## Features
 
+- Input form for customer details
+- Real-time churn probability prediction
+- Debug mode to inspect feature preprocessing
+- Feature insights panel
+- Streamlit-based interactive UI
+
 ## Workflow
 
 ```mermaid
@@ -22,7 +28,8 @@ flowchart LR
 
 ## Technologies
 
-```mermaid
-graph TD
-    A["<b>Data Cleaning</b><br/><small>- Remove missing values<br/>- Change data type</small>"] --> B["<b>EDA & Visualizations</b><br/><small>- Explored customer distributions using grouping and aggregation<br/>- Analyzed feature correlations and behavioral patterns</small>"] --> C
-```
+- **Environment:** *Azure, Jupyter Notebooks*
+- **Data Cleaning:** *Pandas, NumPy*
+- **EDA & Visualizations:** *Matplotlib, Seaborn, Plotly*
+- **Model Training & Evaluation:** *Scikit-learn, XGBoost, Joblib*
+- **Deployment:** *Streamlit*
