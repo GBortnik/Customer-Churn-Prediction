@@ -24,10 +24,13 @@ The app is built with Streamlit and allows users to:
 Below are some screenshots from the application:
 
 **Main Interface:**
+![Main Interface](/images/Main%20Interface.png)
 
-**Sidebar with Options:**
+**Collapsible Sidebar:**
+![Collapsible Sidebar](/images/Collapsible%20Sidebar.png)
 
 **Prediction Output:**
+![Prediction Output](/images/Prediction%20Output.png)
 
 ## Features
 
