@@ -1,5 +1,9 @@
 # Customer Churn Prediction
-Machine Learning Project in progress
+This project focuses on predicting customer churn using supervised machine learning techniques. Based on the IBM Telco Customer Churn dataset, several classification models were tested — including ***Logistic Regression***, ***Random Forest***, and ***XGBoost***. Logistic Regression was selected as the final model due to its superior performance on evaluation metrics.
+
+The entire project was developed in the ***Azure Machine Learning*** environment using Jupyter notebooks, allowing for efficient experimentation and model tracking.
+
+To make the solution interactive and user-friendly, a ***Streamlit*** web application was developed. The demo allows users to input customer data and receive churn predictions along with the probability score. The application also includes a debug mode and a feature impact view, offering additional insights into model behavior.
 
 ## Contents
 - [Demo](#demo)
