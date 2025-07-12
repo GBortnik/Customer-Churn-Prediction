@@ -17,11 +17,8 @@ A live demo of the churn prediction app is available [HERE](https://gbchurnpredi
 The app is built with Streamlit and allows users to:
 
 - Input customer data and receive a churn prediction.
-
 - View the churn probability as a percentage.
-
 - Enable Debug Mode to inspect how features are transformed before prediction.
-
 - Enable Feature Impact to view model coefficients and the relative influence of each feature.
 
 Below are some screenshots from the application:
