@@ -5,6 +5,8 @@ The entire project was developed in the ***Azure Machine Learning*** environment
 
 To make the solution interactive and user-friendly, a ***Streamlit*** web application was developed. The demo allows users to input customer data and receive churn predictions along with the probability score. The application also includes a debug mode and a feature impact view, offering additional insights into model behavior.
 
+🇵🇱 Polish version of the document can be found [here](/README-PL.md) / Polską wersję dokumentu można znaleźć [tutaj](/README-PL.md). 🇵🇱
+
 ## Contents
 - [Demo](#demo)
 - [Features](#features)
@@ -33,7 +35,7 @@ Below are some screenshots from the application:
 ![Prediction Output](/images/Prediction%20Output.png)
 
 ## Features
-
+Key interface elements of the app include:
 - Input form for customer details
 - Real-time churn probability prediction
 - Debug mode to inspect feature preprocessing
@@ -50,7 +52,7 @@ flowchart LR
 ```
 
 ## Technologies
-
+Key technologies used in this project include:
 - **Environment:** *Azure, Jupyter Notebooks*
 - **Data Cleaning:** *Pandas, NumPy*
 - **EDA & Visualizations:** *Matplotlib, Seaborn, Plotly*
